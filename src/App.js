@@ -5,6 +5,7 @@ import Navbar from './components/Navbar';
 
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import LandingPage from './pages/LandingPage';
 
 import JobSeekerDashboard from './pages/jobseeker/JobSeekerDashboard';
 import BrowseJobsPage from './pages/jobseeker/BrowseJobsPage';
@@ -25,7 +26,13 @@ import ScheduleInterviewPage from './pages/recruiter/ScheduleInterviewPage';
 import './App.css';
 
 function App() {
-  const [user, setUser] = useState(null);
+
+  // ✅ fix 1 — read localStorage on first load so refresh keeps user logged in
+  var [user, setUser] = useState(function() {
+    var stored = localStorage.getItem('user');
+    if (stored) return JSON.parse(stored);
+    return null;
+  });
 
   function handleLogin(userData) {
     setUser(userData);
@@ -37,57 +44,65 @@ function App() {
     localStorage.removeItem('user');
   }
 
-  function getStoredUser() {
-    if (user) return user;
-    var stored = localStorage.getItem('user');
-    if (stored) return JSON.parse(stored);
-    return null;
-  }
-
-  var currentUser = getStoredUser();
+  var currentUser = user;
   var role = currentUser ? currentUser.role : null;
 
   return (
     <Router>
-      {currentUser && <Navbar user={currentUser} onLogout={handleLogout} />}
+      {currentUser && role && (
+        <Navbar user={currentUser} onLogout={handleLogout} />
+      )}
+
       <Routes>
 
         {/* Public Routes */}
-        <Route path="/" element={<LoginPage onLogin={handleLogin} />} />
-        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/" element={
+          // ✅ fix 2 — changed JOB_SEEKER to CANDIDATE
+          role === 'CANDIDATE' ? <Navigate to="/candidate/dashboard" /> :
+          role === 'EMPLOYER'  ? <Navigate to="/employer/dashboard" /> :
+          role === 'RECRUITER' ? <Navigate to="/recruiter/dashboard" /> :
+          <LandingPage user={currentUser} onLogout={handleLogout} />
+        } />
 
-        {/* Job Seeker Routes */}
-        {role === 'JOB_SEEKER' && (
+        <Route path="/login" element={
+          currentUser ? <Navigate to="/" /> : <LoginPage onLogin={handleLogin} />
+        } />
+
+        <Route path="/register" element={
+          currentUser ? <Navigate to="/" /> : <RegisterPage />
+        } />
+
+        {/* ✅ fix 3 — changed JOB_SEEKER to CANDIDATE, updated paths */}
+        {role === 'CANDIDATE' && (
           <>
-            <Route path="/jobseeker/dashboard" element={<JobSeekerDashboard user={currentUser} />} />
-            <Route path="/jobseeker/browse" element={<BrowseJobsPage />} />
-            <Route path="/jobseeker/job/:id" element={<JobDetailsPage />} />
-            <Route path="/jobseeker/applications" element={<MyApplicationsPage user={currentUser} />} />
-            <Route path="/jobseeker/profile" element={<ProfilePage user={currentUser} />} />
+            <Route path="/candidate/dashboard" element={<JobSeekerDashboard user={currentUser} />} />
+            <Route path="/candidate/browse" element={<BrowseJobsPage user={currentUser} />} />
+            <Route path="/candidate/job/:id" element={<JobDetailsPage user={currentUser} />} />
+            <Route path="/candidate/applications" element={<MyApplicationsPage user={currentUser} />} />
+            <Route path="/candidate/profile" element={<ProfilePage user={currentUser} />} />
           </>
         )}
 
-        {/* Employer Routes */}
+        {/* Employer Routes — no change */}
         {role === 'EMPLOYER' && (
           <>
             <Route path="/employer/dashboard" element={<EmployerDashboard user={currentUser} />} />
             <Route path="/employer/post-job" element={<PostJobPage user={currentUser} />} />
             <Route path="/employer/my-jobs" element={<MyJobPostsPage user={currentUser} />} />
-            <Route path="/employer/applicants/:jobId" element={<ViewApplicantsPage />} />
+            <Route path="/employer/applicants/:jobId" element={<ViewApplicantsPage user={currentUser} />} />
           </>
         )}
 
-        {/* Recruiter Routes */}
+        {/* Recruiter Routes — no change */}
         {role === 'RECRUITER' && (
           <>
             <Route path="/recruiter/dashboard" element={<RecruiterDashboard user={currentUser} />} />
-            <Route path="/recruiter/all-jobs" element={<AllJobsPage />} />
-            <Route path="/recruiter/applications" element={<ManageApplicationsPage />} />
-            <Route path="/recruiter/schedule-interview" element={<ScheduleInterviewPage />} />
+            <Route path="/recruiter/all-jobs" element={<AllJobsPage user={currentUser} />} />
+            <Route path="/recruiter/applications" element={<ManageApplicationsPage user={currentUser} />} />
+            <Route path="/recruiter/schedule-interview" element={<ScheduleInterviewPage user={currentUser} />} />
           </>
         )}
 
-        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" />} />
 
       </Routes>

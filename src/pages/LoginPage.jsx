@@ -15,44 +15,26 @@ function LoginPage({ onLogin }) {
       return;
     }
 
-    // TODO: Uncomment when backend is ready
-    // fetch('http://localhost:8080/api/login', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ email: email, password: password })
-    // })
-    // .then(function(res) { return res.json(); })
-    // .then(function(data) {
-    //   if (data.role) {
-    //     onLogin(data);
-    //     if (data.role === 'JOB_SEEKER') navigate('/jobseeker/dashboard');
-    //     if (data.role === 'EMPLOYER') navigate('/employer/dashboard');
-    //     if (data.role === 'RECRUITER') navigate('/recruiter/dashboard');
-    //   } else {
-    //     setError('Invalid email or password');
-    //   }
-    // })
-    // .catch(function() { setError('Server error. Try again.'); });
-
-    // Dummy login for testing
-    var dummyUsers = [
-      { id: 1, name: 'John Seeker', email: 'seeker@test.com', password: '123', role: 'JOB_SEEKER' },
-      { id: 2, name: 'Alice Employer', email: 'employer@test.com', password: '123', role: 'EMPLOYER' },
-      { id: 3, name: 'Bob Recruiter', email: 'recruiter@test.com', password: '123', role: 'RECRUITER' }
-    ];
-
-    var found = dummyUsers.find(function(u) {
-      return u.email === email && u.password === password;
+    fetch('http://localhost:8080/api/user/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, password: password })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.role) {
+        localStorage.setItem('user', JSON.stringify(data));
+        onLogin(data);
+        if (data.role === 'CANDIDATE') navigate('/candidate/dashboard');
+        if (data.role === 'EMPLOYER')  navigate('/employer/dashboard');
+        if (data.role === 'RECRUITER') navigate('/recruiter/dashboard');
+      } else {
+        setError('Invalid email or password');
+      }
+    })
+    .catch(function() {
+      setError('Server error. Make sure backend is running on port 8080');
     });
-
-    if (found) {
-      onLogin(found);
-      if (found.role === 'JOB_SEEKER') navigate('/jobseeker/dashboard');
-      if (found.role === 'EMPLOYER') navigate('/employer/dashboard');
-      if (found.role === 'RECRUITER') navigate('/recruiter/dashboard');
-    } else {
-      setError('Invalid email or password');
-    }
   }
 
   return (

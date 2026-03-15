@@ -8,7 +8,7 @@ function RegisterPage() {
   var [name, setName] = useState('');
   var [email, setEmail] = useState('');
   var [password, setPassword] = useState('');
-  var [role, setRole] = useState('JOB_SEEKER');
+  var [role, setRole] = useState('CANDIDATE');
   var [error, setError] = useState('');
   var [success, setSuccess] = useState('');
 
@@ -18,28 +18,29 @@ function RegisterPage() {
       return;
     }
 
-    // TODO: Uncomment when backend is ready
-    // fetch('http://localhost:8080/api/register', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ name: name, email: email, password: password, role: role })
-    // })
-    // .then(function(res) { return res.json(); })
-    // .then(function(data) {
-    //   if (data.id) {
-    //     setSuccess('Registration successful! Please login.');
-    //     setError('');
-    //     setTimeout(function() { navigate('/'); }, 1500);
-    //   } else {
-    //     setError('Registration failed. Try again.');
-    //   }
-    // })
-    // .catch(function() { setError('Server error. Try again.'); });
-
-    // Dummy register for testing
-    setSuccess('Registration successful! Please login.');
-    setError('');
-    setTimeout(function() { navigate('/'); }, 1500);
+    fetch('http://localhost:8080/api/user/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: name,
+        email: email,
+        password: password,
+        role: role
+      })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.id) {
+        setSuccess('Registration successful! Please login.');
+        setError('');
+        setTimeout(function() { navigate('/login'); }, 1500);
+      } else {
+        setError(data);
+      }
+    })
+    .catch(function() {
+      setError('Server error. Make sure backend is running on port 8080');
+    });
   }
 
   return (
@@ -91,7 +92,7 @@ function RegisterPage() {
               value={role}
               onChange={function(e) { setRole(e.target.value); }}
             >
-              <option value="JOB_SEEKER">Job Seeker</option>
+              <option value="CANDIDATE">Job Seeker</option>
               <option value="EMPLOYER">Employer</option>
               <option value="RECRUITER">Recruiter</option>
             </select>
@@ -105,7 +106,7 @@ function RegisterPage() {
           </button>
 
           <p className="register-footer">
-            Already have an account? <Link to="/">Login here</Link>
+            Already have an account? <Link to="/login">Login here</Link>
           </p>
         </div>
 

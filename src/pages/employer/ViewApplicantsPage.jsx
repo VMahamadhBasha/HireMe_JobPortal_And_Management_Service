@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import '../../css/ViewApplicantsPage.css';
 
@@ -6,59 +6,67 @@ function ViewApplicantsPage() {
   var { jobId } = useParams();
   var navigate = useNavigate();
 
-  // TODO: Uncomment when backend is ready
-  // var [applicants, setApplicants] = useState([]);
-  // fetch('http://localhost:8080/api/applications/job/' + jobId)
-  // .then(function(res) { return res.json(); })
-  // .then(function(data) { setApplicants(data); });
-
-  var [applicants, setApplicants] = useState([
-    { id: 1, name: 'John Doe', email: 'john@test.com', phone: '9876543210', experience: '2 Years', skills: 'React, JavaScript, HTML', appliedDate: '2024-03-01', status: 'APPLIED' },
-    { id: 2, name: 'Jane Smith', email: 'jane@test.com', phone: '9876543211', experience: '3 Years', skills: 'React, Node.js, CSS', appliedDate: '2024-03-02', status: 'INTERVIEW' },
-    { id: 3, name: 'Mike Johnson', email: 'mike@test.com', phone: '9876543212', experience: '1 Year', skills: 'HTML, CSS, JavaScript', appliedDate: '2024-03-03', status: 'APPLIED' },
-    { id: 4, name: 'Sara Lee', email: 'sara@test.com', phone: '9876543213', experience: '4 Years', skills: 'React, TypeScript, Redux', appliedDate: '2024-03-04', status: 'SELECTED' },
-    { id: 5, name: 'Tom Brown', email: 'tom@test.com', phone: '9876543214', experience: '2 Years', skills: 'Vue.js, JavaScript, CSS', appliedDate: '2024-03-05', status: 'REJECTED' }
-  ]);
-
+  var [applicants, setApplicants] = useState([]);
+  var [loading, setLoading] = useState(true);
+  var [error, setError] = useState('');
   var [filter, setFilter] = useState('ALL');
+
+  // fetch applicants when page loads
+  useEffect(function() {
+    fetch('http://localhost:8080/api/employer/applications?jobId=' + jobId)
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      setApplicants(data);
+      setLoading(false);
+    })
+    .catch(function() {
+      setError('Failed to load applicants.');
+      setLoading(false);
+    });
+  }, [jobId]);
 
   var filteredApplicants = applicants.filter(function(app) {
     if (filter === 'ALL') return true;
-    return app.status === filter;
+    return app.applicationStatus === filter;
   });
 
   function handleStatusChange(applicantId, newStatus) {
-    // TODO: Uncomment when backend is ready
-    // fetch('http://localhost:8080/api/applications/' + applicantId + '/status', {
-    //   method: 'PUT',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ status: newStatus })
-    // })
-    // .then(function(res) { return res.json(); })
-    // .then(function() {
-    //   setApplicants(applicants.map(function(a) {
-    //     return a.id === applicantId ? { ...a, status: newStatus } : a;
-    //   }));
-    // });
-
-    setApplicants(applicants.map(function(a) {
-      return a.id === applicantId ? Object.assign({}, a, { status: newStatus }) : a;
-    }));
+    fetch('http://localhost:8080/api/recruiter/application/' + applicantId + '?status=' + newStatus, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' }
+    })
+    .then(function(res) { return res.json(); })
+    .then(function() {
+      // update status in UI without reloading
+      setApplicants(applicants.map(function(a) {
+        return a.id === applicantId
+          ? Object.assign({}, a, { applicationStatus: newStatus })
+          : a;
+      }));
+    })
+    .catch(function() {
+      setError('Failed to update status.');
+    });
   }
 
   function getStatusClass(status) {
-    if (status === 'APPLIED') return 'badge badge-blue';
-    if (status === 'INTERVIEW') return 'badge badge-yellow';
-    if (status === 'SELECTED') return 'badge badge-green';
-    if (status === 'REJECTED') return 'badge badge-red';
+    if (status === 'APPLIED')     return 'badge badge-blue';
+    if (status === 'SHORTLISTED') return 'badge badge-yellow';
+    if (status === 'INTERVIEW')   return 'badge badge-yellow';
+    if (status === 'HIRED')       return 'badge badge-green';
+    if (status === 'REJECTED')    return 'badge badge-red';
     return 'badge badge-blue';
+  }
+
+  if (loading) {
+    return <div className="page-container"><p>Loading applicants...</p></div>;
   }
 
   return (
     <div className="page-container">
 
       <button className="back-btn" onClick={function() { navigate('/employer/my-jobs'); }}>
-        ← Back to My Jobs
+        Back to My Jobs
       </button>
 
       <div className="dashboard-welcome">
@@ -66,8 +74,10 @@ function ViewApplicantsPage() {
         <p className="dashboard-subtitle">{applicants.length} total applicants</p>
       </div>
 
+      {error && <p className="error-msg">{error}</p>}
+
       <div className="filter-tabs">
-        {['ALL', 'APPLIED', 'INTERVIEW', 'SELECTED', 'REJECTED'].map(function(tab) {
+        {['ALL', 'APPLIED', 'SHORTLISTED', 'INTERVIEW', 'HIRED', 'REJECTED'].map(function(tab) {
           return (
             <button
               key={tab}
@@ -86,35 +96,45 @@ function ViewApplicantsPage() {
         {filteredApplicants.length === 0 && (
           <div className="empty-state">No applicants found.</div>
         )}
+
         {filteredApplicants.map(function(applicant) {
           return (
             <div className="applicant-card card" key={applicant.id}>
 
               <div className="applicant-left">
-                <div className="applicant-avatar">{applicant.name.charAt(0)}</div>
+                <div className="applicant-avatar">
+                  {applicant.candidate
+                    ? applicant.candidate.name.charAt(0)
+                    : 'A'}
+                </div>
                 <div className="applicant-info">
-                  <h3 className="applicant-name">{applicant.name}</h3>
+                  <h3 className="applicant-name">
+                    {applicant.candidate ? applicant.candidate.name : 'Unknown'}
+                  </h3>
                   <div className="applicant-meta">
-                    <span>✉️ {applicant.email}</span>
-                    <span>📞 {applicant.phone}</span>
-                    <span>⏳ {applicant.experience}</span>
+                    <span>✉️ {applicant.candidate ? applicant.candidate.email : '-'}</span>
+                    <span>📅 Applied: {applicant.applyDate}</span>
                   </div>
-                  <p className="applicant-skills">🛠️ {applicant.skills}</p>
-                  <p className="applicant-date">Applied: {applicant.appliedDate}</p>
+                  <p className="applicant-skills">
+                    📝 {applicant.coverLetter}
+                  </p>
                 </div>
               </div>
 
               <div className="applicant-right">
-                <span className={getStatusClass(applicant.status)}>{applicant.status}</span>
+                <span className={getStatusClass(applicant.applicationStatus)}>
+                  {applicant.applicationStatus}
+                </span>
                 <div className="applicant-actions">
                   <select
                     className="status-select"
-                    value={applicant.status}
+                    value={applicant.applicationStatus}
                     onChange={function(e) { handleStatusChange(applicant.id, e.target.value); }}
                   >
                     <option value="APPLIED">APPLIED</option>
+                    <option value="SHORTLISTED">SHORTLISTED</option>
                     <option value="INTERVIEW">INTERVIEW</option>
-                    <option value="SELECTED">SELECTED</option>
+                    <option value="HIRED">HIRED</option>
                     <option value="REJECTED">REJECTED</option>
                   </select>
                 </div>

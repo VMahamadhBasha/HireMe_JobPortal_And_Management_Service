@@ -1,25 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../../css/MyJobPostsPage.css';
 
 function MyJobPostsPage({ user }) {
   var navigate = useNavigate();
 
-  // TODO: Uncomment when backend is ready
-  // var [jobs, setJobs] = useState([]);
-  // fetch('http://localhost:8080/api/jobs/employer/' + user.id)
-  // .then(function(res) { return res.json(); })
-  // .then(function(data) { setJobs(data); });
-
-  var [jobs, setJobs] = useState([
-    { id: 1, title: 'Frontend Developer', location: 'Hyderabad', type: 'Full Time', salary: '6-8 LPA', applications: 12, posted: '2024-03-01', status: 'ACTIVE' },
-    { id: 2, title: 'React Developer', location: 'Bangalore', type: 'Full Time', salary: '8-12 LPA', applications: 8, posted: '2024-03-03', status: 'ACTIVE' },
-    { id: 3, title: 'UI Engineer', location: 'Chennai', type: 'Contract', salary: '5-7 LPA', applications: 15, posted: '2024-02-28', status: 'CLOSED' },
-    { id: 4, title: 'Full Stack Developer', location: 'Pune', type: 'Full Time', salary: '10-14 LPA', applications: 12, posted: '2024-03-05', status: 'ACTIVE' },
-    { id: 5, title: 'Java Developer', location: 'Hyderabad', type: 'Full Time', salary: '7-10 LPA', applications: 6, posted: '2024-03-06', status: 'ACTIVE' }
-  ]);
-
+  var [jobs, setJobs] = useState([]);
   var [filter, setFilter] = useState('ALL');
+  var [loading, setLoading] = useState(true);
+  var [error, setError] = useState('');
+
+  // fetch jobs from backend when page loads
+  useEffect(function() {
+    fetch('http://localhost:8080/api/employer/jobs?employerId=' + user.id)
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      setJobs(data);
+      setLoading(false);
+    })
+    .catch(function() {
+      setError('Failed to load jobs.');
+      setLoading(false);
+    });
+  }, [user.id]);
 
   var filteredJobs = jobs.filter(function(job) {
     if (filter === 'ALL') return true;
@@ -27,34 +30,40 @@ function MyJobPostsPage({ user }) {
   });
 
   function handleClose(jobId) {
-    // TODO: Uncomment when backend is ready
-    // fetch('http://localhost:8080/api/jobs/' + jobId + '/close', { method: 'PUT' })
-    // .then(function(res) { return res.json(); })
-    // .then(function() {
-    //   setJobs(jobs.map(function(j) {
-    //     return j.id === jobId ? { ...j, status: 'CLOSED' } : j;
-    //   }));
-    // });
-
-    setJobs(jobs.map(function(j) {
-      return j.id === jobId ? Object.assign({}, j, { status: 'CLOSED' }) : j;
-    }));
+    fetch('http://localhost:8080/api/employer/job/' + jobId + '/close', {
+      method: 'PUT'
+    })
+    .then(function(res) { return res.json(); })
+    .then(function() {
+      setJobs(jobs.map(function(j) {
+        return j.id === jobId ? Object.assign({}, j, { status: 'CLOSED' }) : j;
+      }));
+    })
+    .catch(function() {
+      setError('Failed to close job.');
+    });
   }
 
   function handleDelete(jobId) {
-    // TODO: Uncomment when backend is ready
-    // fetch('http://localhost:8080/api/jobs/' + jobId, { method: 'DELETE' })
-    // .then(function() {
-    //   setJobs(jobs.filter(function(j) { return j.id !== jobId; }));
-    // });
-
-    setJobs(jobs.filter(function(j) { return j.id !== jobId; }));
+    fetch('http://localhost:8080/api/employer/job/' + jobId, {
+      method: 'DELETE'
+    })
+    .then(function() {
+      setJobs(jobs.filter(function(j) { return j.id !== jobId; }));
+    })
+    .catch(function() {
+      setError('Failed to delete job.');
+    });
   }
 
   function getStatusClass(status) {
-    if (status === 'ACTIVE') return 'badge badge-green';
+    if (status === 'OPEN') return 'badge badge-green';
     if (status === 'CLOSED') return 'badge badge-red';
     return 'badge badge-yellow';
+  }
+
+  if (loading) {
+    return <div className="page-container"><p>Loading jobs...</p></div>;
   }
 
   return (
@@ -67,8 +76,10 @@ function MyJobPostsPage({ user }) {
         </button>
       </div>
 
+      {error && <p className="error-msg">{error}</p>}
+
       <div className="filter-tabs">
-        {['ALL', 'ACTIVE', 'CLOSED'].map(function(tab) {
+        {['ALL', 'OPEN', 'CLOSED'].map(function(tab) {
           return (
             <button
               key={tab}
@@ -92,23 +103,23 @@ function MyJobPostsPage({ user }) {
             <div className="job-post-card card" key={job.id}>
 
               <div className="job-post-left">
-                <div className="job-post-logo">{job.title.charAt(0)}</div>
+                <div className="job-post-logo">
+                  {job.title.charAt(0)}
+                </div>
                 <div className="job-post-info">
                   <h3 className="job-post-title">{job.title}</h3>
                   <div className="job-post-meta">
                     <span>📍 {job.location}</span>
-                    <span>💼 {job.type}</span>
-                    <span>💰 {job.salary}</span>
-                    <span>📅 {job.posted}</span>
+                    <span>💰 {job.salaryRange}</span>
+                    <span>📝 {job.description}</span>
                   </div>
-                  <p className="job-post-applications">
-                    👥 {job.applications} Applications
-                  </p>
                 </div>
               </div>
 
               <div className="job-post-right">
-                <span className={getStatusClass(job.status)}>{job.status}</span>
+                <span className={getStatusClass(job.status)}>
+                  {job.status}
+                </span>
                 <div className="job-post-actions">
                   <button
                     className="btn-secondary small-btn"
@@ -116,7 +127,7 @@ function MyJobPostsPage({ user }) {
                   >
                     View Applicants
                   </button>
-                  {job.status === 'ACTIVE' && (
+                  {job.status === 'OPEN' && (
                     <button
                       className="btn-secondary small-btn"
                       onClick={function() { handleClose(job.id); }}

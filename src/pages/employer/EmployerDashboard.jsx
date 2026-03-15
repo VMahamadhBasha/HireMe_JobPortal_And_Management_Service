@@ -1,34 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../../css/EmployerDashboard.css';
 
 function EmployerDashboard({ user }) {
   var navigate = useNavigate();
 
-  // TODO: Uncomment when backend is ready
-  // var [stats, setStats] = useState({ posted: 0, applications: 0, interviews: 0, hired: 0 });
-  // fetch('http://localhost:8080/api/employer/stats?userId=' + user.id)
-  // .then(function(res) { return res.json(); })
-  // .then(function(data) { setStats(data); });
+  var [jobs, setJobs] = useState([]);
+  var [loading, setLoading] = useState(true);
+  var [error, setError] = useState('');
+
+  // fetch employer jobs when page loads
+  useEffect(function() {
+    fetch('http://localhost:8080/api/employer/jobs?employerId=' + user.id)
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      setJobs(data);
+      setLoading(false);
+    })
+    .catch(function() {
+      setError('Failed to load dashboard data.');
+      setLoading(false);
+    });
+  }, [user.id]);
+
+  // calculate stats from real jobs data
+  var totalJobs = jobs.length;
+  var openJobs = jobs.filter(function(j) { return j.status === 'OPEN'; }).length;
+  var closedJobs = jobs.filter(function(j) { return j.status === 'CLOSED'; }).length;
 
   var stats = [
-    { label: 'Jobs Posted', value: 8, icon: '📋' },
-    { label: 'Total Applications', value: 47, icon: '👥' },
-    { label: 'Interviews Scheduled', value: 12, icon: '🎯' },
-    { label: 'Candidates Hired', value: 3, icon: '✅' }
+    { label: 'Jobs Posted', value: totalJobs, icon: '📋' },
+    { label: 'Open Jobs', value: openJobs, icon: '✅' },
+    { label: 'Closed Jobs', value: closedJobs, icon: '🔒' },
+    { label: 'Total Listings', value: totalJobs, icon: '👥' }
   ];
 
-  var recentJobs = [
-    { id: 1, title: 'Frontend Developer', applications: 12, status: 'ACTIVE', posted: '2 days ago' },
-    { id: 2, title: 'React Developer', applications: 8, status: 'ACTIVE', posted: '4 days ago' },
-    { id: 3, title: 'UI Engineer', applications: 15, status: 'CLOSED', posted: '1 week ago' },
-    { id: 4, title: 'Full Stack Developer', applications: 12, status: 'ACTIVE', posted: '3 days ago' }
-  ];
+  // show only last 4 jobs in recent section
+  var recentJobs = jobs.slice(0, 4);
 
   function getStatusClass(status) {
-    if (status === 'ACTIVE') return 'badge badge-green';
+    if (status === 'OPEN') return 'badge badge-green';
     if (status === 'CLOSED') return 'badge badge-red';
     return 'badge badge-yellow';
+  }
+
+  if (loading) {
+    return <div className="page-container"><p>Loading dashboard...</p></div>;
   }
 
   return (
@@ -44,6 +61,9 @@ function EmployerDashboard({ user }) {
         </button>
       </div>
 
+      {error && <p className="error-msg">{error}</p>}
+
+      {/* Stats from real data */}
       <div className="stats-grid">
         {stats.map(function(stat, index) {
           return (
@@ -56,6 +76,7 @@ function EmployerDashboard({ user }) {
         })}
       </div>
 
+      {/* Recent Jobs from real data */}
       <div className="card">
         <div className="section-header">
           <h2>Recent Job Postings</h2>
@@ -64,37 +85,47 @@ function EmployerDashboard({ user }) {
           </button>
         </div>
 
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Job Title</th>
-              <th>Applications</th>
-              <th>Posted</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recentJobs.map(function(job) {
-              return (
-                <tr key={job.id}>
-                  <td>{job.title}</td>
-                  <td>{job.applications} applicants</td>
-                  <td>{job.posted}</td>
-                  <td><span className={getStatusClass(job.status)}>{job.status}</span></td>
-                  <td>
-                    <button
-                      className="btn-secondary small-btn"
-                      onClick={function() { navigate('/employer/applicants/' + job.id); }}
-                    >
-                      View Applicants
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        {recentJobs.length === 0 ? (
+          <p style={{ padding: '20px', color: '#888' }}>
+            No jobs posted yet. Click "Post New Job" to get started!
+          </p>
+        ) : (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Job Title</th>
+                <th>Location</th>
+                <th>Salary Range</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentJobs.map(function(job) {
+                return (
+                  <tr key={job.id}>
+                    <td>{job.title}</td>
+                    <td>{job.location}</td>
+                    <td>{job.salaryRange}</td>
+                    <td>
+                      <span className={getStatusClass(job.status)}>
+                        {job.status}
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        className="btn-secondary small-btn"
+                        onClick={function() { navigate('/employer/applicants/' + job.id); }}
+                      >
+                        View Applicants
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
 
     </div>
